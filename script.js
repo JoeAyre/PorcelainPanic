@@ -1,5 +1,5 @@
+// --- MARSHALL - what are you nosing around in here for? KRAPMAN's comin' to get ya! ---
 // --- START OF FILE script.js ---
-//MARSHALL - what are you nosing around in here for? KRAPMAN's comin' to get ya!
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const startScreen = document.getElementById('start-screen');
