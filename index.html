@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Adventures of Krap-Man</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="start-screen">
+            <h1>The Adventures of Krap-Man</h1>
+            <div class="instructions">
+                <!-- Instructions updated slightly -->
+                <p><strong>Goal (2P):</strong> Toilet must catch the Poo!</p>
+                <p><strong>Goal (1P):</strong> Survive as Poo for as long as possible!</p>
+                <p><strong>Controls:</strong></p>
+                <ul>
+                    <li>💩 (Poo): W (Up), A (Left), S (Down), D (Right)</li>
+                    <li>🚽 (Toilet - 2P): Arrow Keys (Up, Left, Down, Right)</li>
+                </ul>
+                <p><strong>Items:</strong></p>
+                <ul>
+                    <li>📜 (Toilet Paper): Slows down whoever touches it.</li>
+                    <li>🍔 (Food): Power-up for Poo (Speed Boost + Big Poo Flash + Score).</li>
+                    <li>💧 (Flush): Power-up for Toilet (Speed Boost + Water Flash + Score).</li>
+                </ul>
+            </div>
+
+            <!-- *** MODE AND DIFFICULTY SELECTION *** -->
+            <div class="mode-selection-area">
+                <div class="difficulty-selection">
+                    <label for="difficulty-select">Bristol Stool Chart (Difficulty):</label>
+                    <select id="difficulty-select" name="difficulty">
+                        <option value="1">Type 1 (Constipated - the hardest poo!)</option>
+                        <option value="2">Type 2 (Hard poo)</option>
+                        <option value="3">Type 3 (Tricky poo)</option>
+                        <option value="4" selected>Type 4 (Bog standard poo)</option> <!-- Default -->
+                        <option value="5">Type 5 (Easy going poo)</option>
+                        <option value="6">Type 6 (Very loose poo)</option>
+                        <option value="7">Type 7 (Diarrhoea - the easiest poo!)</option>
+                    </select>
+                    <button id="start-one-player" class="mode-button">Start 1 Player</button>
+                </div>
+                <div class="two-player-start">
+                     <button id="start-two-player" class="mode-button">Start 2 Player</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-area" style="display: none;">
+            <!-- Players -->
+            <div id="poo" class="player">💩</div>
+            <div id="toilet" class="player">🚽</div>
+
+            <!-- Walls will be added here by JavaScript -->
+
+            <!-- Items - Will be positioned randomly by JS -->
+            <div id="toilet-paper" class="item debuff">📜</div>
+            <div id="food" class="item powerup">🍔</div>
+            <div id="flush" class="item powerup">💧</div>
+
+            <!-- Visual Effects Overlay -->
+            <div id="effect-overlay"></div>
+
+            <!-- Displays -->
+            <div id="timer-display">Time: 0.0s</div>
+            <!-- *** SCORE DISPLAY CONTAINER *** -->
+            <div id="score-display-container">
+                 <span id="poo-score-display" class="score-item">💩: 0</span>
+                 <span id="toilet-score-display" class="score-item">🚽: 0</span>
+            </div>
+        </div>
+
+         <!-- Game Over Screen -->
+        <div id="game-over-screen" style="display: none;">
+            <h1>OH KRAP-MAN!</h1>
+            <p id="final-time"></p>
+             <!-- *** FINAL SCORE DISPLAY *** -->
+            <p id="final-score"></p>
+            <button id="restart-button">Play Again?</button>
+        </div>
+    </div>
+
+    <!-- Sound Effect -->
+    <audio id="win-sound" src="ohcrapman.mp3" preload="auto"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
