@@ -12,7 +12,6 @@
         <div id="start-screen">
             <h1>Krap-Man: Porcelain Panic!</h1>
             <div class="instructions">
-                <!-- Instructions updated slightly -->
                 <p><strong>Goal (2P):</strong> Toilet must catch the Poo!</p>
                 <p><strong>Goal (1P):</strong> Survive as Poo for as long as possible!</p>
                 <p><strong>Controls:</strong></p>
@@ -66,22 +65,21 @@
 
             <!-- Displays -->
             <div id="timer-display">Time: 0.0s</div>
-            <!-- *** SCORE DISPLAY CONTAINER *** -->
             <div id="score-display-container">
                  <span id="poo-score-display" class="score-item">💩: 0</span>
                  <span id="toilet-score-display" class="score-item">🚽: 0</span>
+                 <span id="level-display" class="score-item">Lvl: 0</span>
             </div>
-        </div>
+         </div> <!-- End of game-area -->
 
          <!-- Game Over Screen -->
         <div id="game-over-screen" style="display: none;">
             <h1>OH KRAP-MAN!</h1>
             <p id="final-time"></p>
-             <!-- *** FINAL SCORE DISPLAY *** -->
             <p id="final-score"></p>
             <button id="restart-button">Play Again?</button>
         </div>
-    </div>
+    </div> <!-- End of game-container -->
 
     <!-- Sound Effect -->
     <audio id="win-sound" src="ohcrapman.mp3" preload="auto"></audio>
