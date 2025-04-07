@@ -74,7 +74,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkCollision(rect1, rect2) { return ( rect1.left < rect2.right && rect1.right > rect2.left && rect1.top < rect2.bottom && rect1.bottom > rect2.top ); }
     function getPlayerRect(playerState) { return { left: playerState.x, top: playerState.y, right: playerState.x + PLAYER_SIZE, bottom: playerState.y + PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE }; }
     function getItemRect(itemElement) { return getRelativeRect(itemElement); }
-    function initializeWalls() { wallsState.forEach(w=>w.element.remove()); wallsState=[]; initialWallConfigurations.forEach(c=>{const e=document.createElement('div'); e.classList.add('wall'); e.style.width=`${c.width}px`; e.style.height=`${c.height}px`; gameArea.appendChild(e); let dx=0,dy=0; while(dx===0&&dy===0){dx=(Math.random()<0.5?WALL_SPEED:-WALL_SPEED)*(Math.random()>0.1?1:0); dy=(Math.random()<0.5?WALL_SPEED:-WALL_SPEED)*(Math.random()>0.1?1:0);} const ws={element:e,x:c.x,y:c.y,width:c.width,height:c.height,dx:dx,dy:dy}; wallsState.push(ws); positionElement(e,ws.x,ws.y);}); /*console.log(`Initialized ${wallsState.length} walls.`);*/ }
+    // *** UPDATED initializeWalls function ***
+function initializeWalls() {
+    wallsState.forEach(wall => wall.element.remove());
+    wallsState = [];
+    initialWallConfigurations.forEach(config => {
+        const wallElement = document.createElement('div');
+        wallElement.classList.add('wall');
+        wallElement.style.width = `${config.width}px`;
+        wallElement.style.height = `${config.height}px`;
+        gameArea.appendChild(wallElement);
+
+        // *** Assign BOTH dx and dy, ALWAYS non-zero magnitude ***
+        let dx = (Math.random() < 0.5 ? WALL_SPEED : -WALL_SPEED);
+        let dy = (Math.random() < 0.5 ? WALL_SPEED : -WALL_SPEED);
+        // Removed the while loop and the random * 0 multiplier
+
+        const wallState = {
+            element: wallElement, x: config.x, y: config.y,
+            width: config.width, height: config.height,
+            dx: dx, dy: dy // Both dx and dy will have magnitude WALL_SPEED
+        };
+        wallsState.push(wallState);
+        positionElement(wallElement, wallState.x, wallState.y);
+    });
+    console.log(`Initialized ${wallsState.length} walls with guaranteed diagonal start.`);
+}
+    
     function moveWalls() { wallsState.forEach(w=>{let nX=w.x+w.dx,nY=w.y+w.dy; if(nX<0||nX+w.width>GAME_WIDTH){w.dx*=-1;nX=w.x+w.dx;nX=Math.max(0,Math.min(GAME_WIDTH-w.width,nX));} if(nY<0||nY+w.height>GAME_HEIGHT){w.dy*=-1;nY=w.y+w.dy;nY=Math.max(0,Math.min(GAME_HEIGHT-w.height,nY));} w.x=nX;w.y=nY;positionElement(w.element,w.x,w.y);}); }
     function showBigPooEffect() { effectOverlay.innerHTML = '💩'; effectOverlay.className = 'big-poo'; effectOverlay.style.display = 'flex'; setTimeout(() => { if (effectOverlay.classList.contains('big-poo')) { effectOverlay.style.display = 'none'; effectOverlay.innerHTML = ''; effectOverlay.className = ''; } }, EFFECT_FLASH_DURATION); }
     function showWaterfallEffect() { const n=20,d=350,a=EFFECT_FLASH_DURATION; for (let i=0;i<n;i++){const e=document.createElement('div'); e.classList.add('water-drop'); e.innerHTML='💧'; const l=Math.random()*100; e.style.left=`${l}%`; const y=Math.random()*d; e.style.animationDelay=`${y}ms`; e.style.animationDuration=`${a}ms`; gameArea.appendChild(e); setTimeout(()=>{if(e.parentNode===gameArea){gameArea.removeChild(e);}},a+y+50);}}
