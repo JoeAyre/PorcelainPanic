@@ -1,33 +1,36 @@
 /* --- MARSHALL - what are you nosing around in here for? KRAPMAN's comin' to get ya! --- */
 body {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
     min-height: 100vh;
     background-color: #222;
     font-family: sans-serif;
     color: #fff;
     margin: 0;
+    overflow: hidden; /* Prevent scrollbars if scaling slightly overflows */
 }
 
 #game-container {
     position: relative;
+    /* Keep the BASE dimensions for aspect ratio calculation and internal logic */
     width: 600px;
     height: 500px;
     border: 3px solid #555;
     background-color: #333;
     overflow: hidden;
+    /* Scaling will be applied via JavaScript */
+    transform-origin: center center; /* Scale from the center */
+    /* Add transition for smoother resizing (optional) */
+    /* transition: transform 0.1s linear; */
 }
 
 /* --- Splash Screen --- */
 #splash-screen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #1a1a1a; /* Dark background */
-    display: flex; /* Show splash by default (JS will hide start screen) */
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-color: #1a1a1a;
+    display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -37,87 +40,63 @@ body {
 }
 
 #splash-image {
-    max-width: 85%; /* Adjust size as needed */
-    max-height: 70%; /* Adjust size as needed */
-    object-fit: contain; /* Maintain aspect ratio */
-    margin-bottom: 15px; /* Slightly less margin */
+    max-width: 85%;
+    max-height: 70%;
+    object-fit: contain;
+    margin-bottom: 25px;
 }
 
-/* *** NEW MUSIC BUTTON STYLE *** */
 #splash-music-button {
     padding: 8px 15px;
-    font-size: 1.0em; /* Slightly smaller than main play button */
+    font-size: 1.0em;
     cursor: pointer;
-    background-color: #444; /* Neutral dark grey */
+    background-color: #444;
     border: 1px solid #666;
     border-radius: 5px;
     color: #eee;
     font-weight: normal;
-    margin-bottom: 15px; /* Space between music and play buttons */
+    margin-bottom: 15px;
     transition: background-color 0.2s ease;
 }
-#splash-music-button:hover {
-    background-color: #555;
-}
-/* Style for when music is playing (optional) */
-#splash-music-button.playing {
-    background-color: #2a2a4a; /* Indicate playing state */
-    border-color: #888;
-}
-
+#splash-music-button:hover { background-color: #555; }
+#splash-music-button.playing { background-color: #2a2a4a; border-color: #888; }
 
 #splash-play-button {
-    /* Style similarly to other buttons */
     padding: 12px 25px;
     font-size: 1.4em;
     cursor: pointer;
-    background-color: #00cc66; /* Fun green color */
+    background-color: #00cc66;
     border: none;
     border-radius: 8px;
     color: #fff;
     font-weight: bold;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     transition: background-color 0.2s ease;
-    /* margin-top: 10px; Removed - added margin-bottom to music button */
 }
-
-#splash-play-button {
-    /* Style similarly to other buttons */
-    padding: 12px 25px;
-    font-size: 1.4em;
-    cursor: pointer;
-    background-color: #00cc66; /* Fun green color */
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-weight: bold;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-    transition: background-color 0.2s ease;
-    margin-top: 10px;
-}
-
-#splash-play-button:hover {
-    background-color: #00e673; /* Lighter green on hover */
-}
-
+#splash-play-button:hover { background-color: #00e673; }
 
 /* --- Start Screen --- */
-/* Note: Initial display is set to none via inline style in HTML, JS controls visibility */
+/* Make sure overlays scale visually with the container */
 #start-screen, #game-over-screen {
-    display: flex; /* This rule applies when JS makes it visible */
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; /* Or none initially based on JS */
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
     padding: 15px;
     background-color: rgba(0, 0, 0, 0.85);
-    position: absolute; top: 0; left: 0;
-    width: 100%; height: 100%;
     z-index: 10; /* Below splash, above game */
     box-sizing: border-box;
 }
+/* Ensure splash is visible first by JS hiding others */
+#start-screen { display: none;} /* Hide initially */
+#game-over-screen { display: none;} /* Hide initially */
+
 
 #start-screen h1, #game-over-screen h1 {
+    font-size: 2.5em; /* Increased base size slightly */
     color: #ff9900;
     margin-top: 0;
     margin-bottom: 10px;
@@ -135,7 +114,6 @@ body {
 #start-screen .instructions li { margin-bottom: 3px; }
 #start-screen .instructions p { margin: 6px 0; font-weight: bold; }
 
-/* --- Mode/Difficulty Selection --- */
 .mode-selection-area {
     display: flex;
     flex-direction: column;
@@ -151,42 +129,17 @@ body {
     padding: 8px 12px;
     border-radius: 6px;
 }
-.difficulty-selection label {
-    font-weight: bold;
-    font-size: 0.95em;
-}
-#difficulty-select {
-    padding: 4px;
-    border-radius: 4px;
-    border: 1px solid #666;
-    background-color: #eee;
-    color: #333;
-    font-size: 0.9em;
-}
-
-.mode-button, #restart-button {
-    padding: 8px 15px;
-    font-size: 1.1em;
-    cursor: pointer;
-    background-color: #ff9900;
-    border: none;
-    border-radius: 5px;
-    color: #333;
-    font-weight: bold;
-}
+.difficulty-selection label { font-weight: bold; font-size: 0.95em; }
+#difficulty-select { padding: 4px; border-radius: 4px; border: 1px solid #666; background-color: #eee; color: #333; font-size: 0.9em; }
+.mode-button, #restart-button { padding: 8px 15px; font-size: 1.1em; cursor: pointer; background-color: #ff9900; border: none; border-radius: 5px; color: #333; font-weight: bold; }
 .mode-button:hover, #restart-button:hover { background-color: #ffbf00; }
 
-/* --- Game Over Screen Specific --- */
-#game-over-screen #final-time,
-#game-over-screen #final-score {
+#game-over-screen #final-time, #game-over-screen #final-score {
     font-size: 1.1em;
     color: #eee;
     margin: 5px 0 10px 0;
 }
-#game-over-screen #restart-button {
-    margin-top: 10px;
-}
-
+#game-over-screen #restart-button { margin-top: 10px; }
 
 /* --- Game Area --- */
 #game-area {
@@ -196,23 +149,10 @@ body {
 }
 
 /* --- In-Game Displays --- */
-#timer-display {
-    position: absolute; top: 5px; left: 10px;
-    color: #fff; font-size: 1em; background-color: rgba(0, 0, 0, 0.4);
-    padding: 3px 8px; border-radius: 4px; z-index: 7;
-}
-#score-display-container {
-    position: absolute; top: 5px; right: 10px;
-    color: #fff; font-size: 1em; background-color: rgba(0, 0, 0, 0.4);
-    padding: 3px 8px; border-radius: 4px; z-index: 7;
-}
-.score-item {
-    margin-left: 10px;
-}
-.score-item:first-child {
-    margin-left: 0;
-}
-
+#timer-display { position: absolute; top: 5px; left: 10px; color: #fff; font-size: 1em; background-color: rgba(0, 0, 0, 0.4); padding: 3px 8px; border-radius: 4px; z-index: 7; }
+#score-display-container { position: absolute; top: 5px; right: 10px; color: #fff; font-size: 1em; background-color: rgba(0, 0, 0, 0.4); padding: 3px 8px; border-radius: 4px; z-index: 7; }
+.score-item { margin-left: 10px; }
+.score-item:first-child { margin-left: 0; }
 
 .player { position: absolute; width: 30px; height: 30px; font-size: 28px; text-align: center; line-height: 30px; user-select: none; z-index: 3; }
 #poo { } #toilet { }
@@ -223,7 +163,7 @@ body {
 #effect-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; display: none; justify-content: center; align-items: center; font-size: 150px; background-color: transparent; }
 #effect-overlay.big-poo { display: flex; background-color: rgba(139, 69, 19, 0.3); }
 .water-drop { position: absolute; top: -30px; font-size: 24px; color: #60c7ff; pointer-events: none; z-index: 6; animation-name: waterfall-animation; animation-timing-function: linear; animation-fill-mode: forwards; opacity: 0.9; }
-@keyframes waterfall-animation { 0% { transform: translateY(0); opacity: 0.9; } 90% { opacity: 0.7; } 100% { transform: translateY(calc(500px + 30px)); opacity: 0; } }
+@keyframes waterfall-animation { 0% { transform: translateY(0); opacity: 0.9; } 90% { opacity: 0.7; } 100% { transform: translateY(calc(500px + 30px)); opacity: 0; } } /* Adjust 500px if game height changes */
 
 /* --- Level Up Overlay --- */
 #level-up-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; justify-content: center; align-items: center; font-size: clamp(50px, 12vw, 100px); font-weight: bold; color: #ffcc00; text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7); background-color: rgba(0, 0, 0, 0.4); z-index: 8; pointer-events: none; opacity: 0; transition: opacity 0.4s ease-in-out; }
