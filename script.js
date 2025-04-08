@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const GAME_LOOP_INTERVAL_MS = 50;
     const AI_MISTAKE_CHANCE = 0.15;
     const AI_RANDOM_MOVE_SCALE = 0.5;
-    const difficultySpeeds = { 1: 5.0, 2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4 };
+    const difficultySpeeds = { 1: 5.0, 2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4, 8: 1.4 };
     const DEFAULT_TOILET_SPEED_2P = 4.0;
 
     // --- Game State Variables ---
