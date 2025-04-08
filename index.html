@@ -9,11 +9,22 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="start-screen">
+
+        <!-- *** ADDED SPLASH SCREEN *** -->
+         <div id="splash-screen">
+            <img id="splash-image" src="splash-image.png" alt="Krap-Man Splash Image">
+            <!-- *** ADDED MUSIC BUTTON *** -->
+            <button id="splash-music-button">🔊 Play Krap-Man Music! 🎶</button>
+            <!-- *** Changed text on main Play button *** -->
+            <button id="splash-play-button">Start Game!</button>
+        </div>
+
+        <!-- *** START SCREEN (Initially Hidden) *** -->
+        <div id="start-screen" style="display: none;">
             <h1>Krap-Man: Porcelain Panic!</h1>
             <div class="instructions">
                 <p><strong>Goal (1P):</strong> Survive as Krap-Man for as long as possible!</p>
-		<p><strong>Goal (2P):</strong> Toilet must catch Krap-Man!</p>
+		        <p><strong>Goal (2P):</strong> Toilet must catch Krap-Man!</p>
                 <p><strong>Controls:</strong></p>
                 <ul>
                     <li>💩 (Krap-Man): W (Up), A (Left), S (Down), D (Right)</li>
@@ -68,12 +79,12 @@
             <div id="score-display-container">
                  <span id="poo-score-display" class="score-item">💩: 0</span>
                  <span id="toilet-score-display" class="score-item">🚽: 0</span>
-                 <span id="level-display" class="score-item">Lvl: 1</span> <!-- Start text at 1 -->
+                 <span id="level-display" class="score-item">Lvl: 1</span>
             </div>
-			
-			<!-- *** NEW LEVEL UP OVERLAY *** -->
+
+			<!-- *** LEVEL UP OVERLAY *** -->
             <div id="level-up-overlay">LEVEL X</div>
-			
+
          </div> <!-- End of game-area -->
 
          <!-- Game Over Screen -->
@@ -85,12 +96,16 @@
         </div>
     </div> <!-- End of game-container -->
 
-    <!-- Sound Effect -->
+    <!-- Sound Effects -->
     <audio id="win-sound" src="ohcrapman.mp3" preload="auto"></audio>
     <audio id="poo-collect-sound" src="poocollect.mp3" preload="auto"></audio>
     <audio id="toilet-collect-sound" src="toiletcollect.mp3" preload="auto"></audio>
     <audio id="level-up-sound" src="levelup.mp3" preload="auto"></audio>
 	<audio id="paper-collect-sound" src="papercollect.mp3" preload="auto"></audio>
-    <!---><script src="script.js"></script>
+    <!-- *** ADDED INTRO SOUND ELEMENT *** -->
+    <audio id="intro-sound" src="intro.mp3" loop></audio>
+
+    <!-- *** FIXED SCRIPT TAG *** -->
+    <script src="script.js"></script>
 </body>
 </html>

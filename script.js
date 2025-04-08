@@ -2,6 +2,9 @@
 // --- START OF FILE script.js ---
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
+    const splashScreen = document.getElementById('splash-screen');
+    const splashPlayButton = document.getElementById('splash-play-button');
+    const splashMusicButton = document.getElementById('splash-music-button'); // Music Button
     const startScreen = document.getElementById('start-screen');
     const gameOverScreen = document.getElementById('game-over-screen');
     const startOnePlayerButton = document.getElementById('start-one-player');
@@ -28,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const pooCollectSound = document.getElementById('poo-collect-sound');
     const toiletCollectSound = document.getElementById('toilet-collect-sound');
     const levelUpSound = document.getElementById('level-up-sound');
-    const paperCollectSound = document.getElementById('paper-collect-sound'); // New Paper Sound
+    const paperCollectSound = document.getElementById('paper-collect-sound');
+    const introSound = document.getElementById('intro-sound'); // Intro sound element
 
     // --- Game Configuration ---
     const WALL_SPEED = 1.5;
@@ -37,14 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const POWERUP_DURATION = 3000;
     const DEBUFF_DURATION = 4000;
     const EFFECT_FLASH_DURATION = 500;
-    const GAME_LOOP_INTERVAL_MS = 50; // Approx 20 FPS
-    // --- AI Configuration ---
+    const GAME_LOOP_INTERVAL_MS = 50;
     const AI_MISTAKE_CHANCE = 0.15;
     const AI_RANDOM_MOVE_SCALE = 0.5;
-    // --- Difficulty Speed Mapping (Higher value = Faster Toilet = Harder) ---
-    const difficultySpeeds = {
-        1: 5.0, 2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4
-    };
+    const difficultySpeeds = { 1: 5.0, 2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4 };
     const DEFAULT_TOILET_SPEED_2P = 4.0;
 
     // --- Game State Variables ---
@@ -61,11 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameTimerInterval = null;
     let startTime = 0;
     let elapsedTime = 0;
-    let selectedDifficulty = 4; // Default difficulty
+    let selectedDifficulty = 4;
     let pooScore = 0;
     let toiletScore = 0;
-    let currentLevel = 1; // START AT LEVEL 1
-    let levelOverlayTimeout = null; // Timer for level overlay visibility
+    let currentLevel = 1;
+    let levelOverlayTimeout = null;
 
     // Wall definitions
     const initialWallConfigurations = [
@@ -76,13 +76,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Helper Functions ---
     function safePlaySound(soundElement) {
-        // Check if the sound element exists and has the play method
         if (soundElement && typeof soundElement.play === 'function') {
-             soundElement.currentTime = 0; // Rewind to the start
-             soundElement.play().catch(e => console.warn("Sound play failed (interaction needed?):", e));
-             // Browsers might block audio initially until user interacts
-        } else {
-            // console.warn("Attempted to play a sound element that wasn't found or is invalid.");
+            soundElement.currentTime = 0;
+            soundElement.play().catch(e => console.warn("Sound play failed:", e));
+        }
+    }
+
+    function safeStopSound(soundElement) {
+        if (soundElement && typeof soundElement.pause === 'function') {
+            soundElement.pause();
+            soundElement.currentTime = 0; // Rewind to start
         }
     }
 
@@ -95,30 +98,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function getRelativeRect(element) {
         if (!element) return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
         const rect = element.getBoundingClientRect();
-        const gameAreaRect = gameArea?.getBoundingClientRect(); // Use optional chaining
+        const gameAreaRect = gameArea?.getBoundingClientRect();
         if (!gameAreaRect) return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
-        return {
-            left: rect.left - gameAreaRect.left, top: rect.top - gameAreaRect.top,
-            right: rect.right - gameAreaRect.left, bottom: rect.bottom - gameAreaRect.top,
-            width: rect.width, height: rect.height
-        };
+        return { left: rect.left - gameAreaRect.left, top: rect.top - gameAreaRect.top, right: rect.right - gameAreaRect.left, bottom: rect.bottom - gameAreaRect.top, width: rect.width, height: rect.height };
     }
 
     function checkCollision(rect1, rect2) {
         if (!rect1 || !rect2 || typeof rect1.left === 'undefined' || typeof rect2.left === 'undefined') { return false; }
-        return (
-            rect1.left < rect2.right && rect1.right > rect2.left &&
-            rect1.top < rect2.bottom && rect1.bottom > rect2.top
-        );
+        return ( rect1.left < rect2.right && rect1.right > rect2.left && rect1.top < rect2.bottom && rect1.bottom > rect2.top );
     }
 
     function getPlayerRect(playerState) {
         if (!playerState) return null;
-        return {
-            left: playerState.x, top: playerState.y,
-            right: playerState.x + PLAYER_SIZE, bottom: playerState.y + PLAYER_SIZE,
-            width: PLAYER_SIZE, height: PLAYER_SIZE
-        };
+        return { left: playerState.x, top: playerState.y, right: playerState.x + PLAYER_SIZE, bottom: playerState.y + PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE };
     }
 
     function getItemRect(itemElement) {
@@ -311,32 +303,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const potentialItemRect = { left: randomX, top: randomY, right: randomX + ITEM_SIZE, bottom: randomY + ITEM_SIZE, width: ITEM_SIZE, height: ITEM_SIZE };
         let overlap = false;
         // Check Walls
-        wallsState.forEach(wall => {
-            if (!wall || typeof wall.x === 'undefined') return;
-            const wallRect = { left: wall.x, top: wall.y, right: wall.x + wall.width, bottom: wall.y + wall.height };
-            const bufferedWallRect = { left: wallRect.left - (ITEM_SIZE / 2), top: wallRect.top - (ITEM_SIZE / 2), right: wallRect.right + (ITEM_SIZE / 2), bottom: wallRect.bottom + (ITEM_SIZE / 2) };
-            if (checkCollision(potentialItemRect, bufferedWallRect)) { overlap = true; }
-        });
+        wallsState.forEach(wall => { if (!wall || typeof wall.x === 'undefined') return; const wallRect = { left: wall.x, top: wall.y, right: wall.x + wall.width, bottom: wall.y + wall.height }; const bufferedWallRect = { left: wallRect.left - (ITEM_SIZE / 2), top: wallRect.top - (ITEM_SIZE / 2), right: wallRect.right + (ITEM_SIZE / 2), bottom: wallRect.bottom + (ITEM_SIZE / 2) }; if (checkCollision(potentialItemRect, bufferedWallRect)) { overlap = true; } });
         // Check Players
         if (!overlap && (checkCollision(potentialItemRect, getPlayerRect(pooState)) || checkCollision(potentialItemRect, getPlayerRect(toiletState)))) { overlap = true; }
         // Check Other Items
-        if (!overlap) {
-            [toiletPaper, food, flush].forEach(otherItem => {
-                if (itemElement !== otherItem && otherItem && otherItem.style.display !== 'none') {
-                    const otherItemRect = getItemRect(otherItem);
-                    if (checkCollision(potentialItemRect, otherItemRect)) { overlap = true; }
-                }
-            });
-        }
+        if (!overlap) { [toiletPaper, food, flush].forEach(otherItem => { if (itemElement !== otherItem && otherItem && otherItem.style.display !== 'none') { const otherItemRect = getItemRect(otherItem); if (checkCollision(potentialItemRect, otherItemRect)) { overlap = true; } } }); }
         // Place or Retry
-        if (!overlap) {
-            if (itemElement) {
-                positionElement(itemElement, randomX, randomY);
-                itemElement.style.display = 'block';
-            }
-        } else {
-            requestAnimationFrame(() => respawnItem(itemElement, attempt + 1)); // Try again next frame
-        }
+        if (!overlap) { if (itemElement) { positionElement(itemElement, randomX, randomY); itemElement.style.display = 'block'; } }
+        else { requestAnimationFrame(() => respawnItem(itemElement, attempt + 1)); }
     }
 
     // --- Wall Initialization / Movement ---
@@ -357,7 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
             wallsState.push(wallState);
             positionElement(wallElement, wallState.x, wallState.y);
         });
-        // console.log(`Initialized ${wallsState.length} walls.`);
     }
 
     function moveWalls() {
@@ -374,12 +347,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Level Up Logic (Sound removed from here) ---
+    // --- Level Up Logic ---
     function levelUp(newLevel) {
         if (!Number.isInteger(newLevel) || currentLevel >= newLevel) return;
         currentLevel = newLevel;
-        // *** REMOVED SOUND CALL FROM HERE ***
-        // safePlaySound(levelUpSound);
+        // Sound played in checkItemCollisions now
         showLevelOverlay(currentLevel);
         updateGameStatusDisplay();
         setBackgroundForLevel(currentLevel);
@@ -427,7 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (!moveTowardsTarget && dx === 0 && dy === 0) { dx = 0; dy = 0; }
 
         const finalPos = calculateCollisionAdjustedPosition(toiletState, dx, dy);
-        toiletState.x = finalPos.x; toiletState.y = finalPos.y;
+        toiletState.x = finalPos.x;
+        toiletState.y = finalPos.y;
         positionElement(toiletState.element, toiletState.x, toiletState.y);
     }
 
@@ -442,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (toiletPaper && toiletPaper.style.display !== 'none') {
             const itemRect = getItemRect(toiletPaper);
             if (checkCollision(playerRect, itemRect)) {
-                safePlaySound(paperCollectSound); // *** PLAY PAPER SOUND ***
+                safePlaySound(paperCollectSound); // Play Paper Sound
                 applyDebuff(playerState, 'slow');
                 toiletPaper.style.display = 'none';
                 setTimeout(() => respawnItem(toiletPaper), 5000);
@@ -457,8 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 pooScore++; scoreChanged = true;
                 const targetLevel = Math.floor(pooScore / 5) + 1;
                 if (targetLevel > currentLevel) {
-                    levelUp(targetLevel); // Level up handles overlay, background, speed
-                    safePlaySound(levelUpSound); // *** PLAY LEVEL UP SOUND HERE ***
+                    levelUp(targetLevel); // Level up handles visuals & speed
+                    safePlaySound(levelUpSound); // PLAY LEVEL UP SOUND HERE
                 }
                 food.style.display = 'none';
                 setTimeout(() => respawnItem(food), 8000);
@@ -513,10 +486,10 @@ document.addEventListener('DOMContentLoaded', () => {
         placeItems();
         updateGameStatusDisplay();
         setBackgroundForLevel(currentLevel);
-        showLevelOverlay(currentLevel);
+        showLevelOverlay(currentLevel); // Show "Level 1" overlay initially
         if (gameLoopInterval) { clearInterval(gameLoopInterval); gameLoopInterval = null; }
         if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
-        startTime = Date.now(); elapsedTime = 0; updateTimerDisplay();
+        startTime = Date.now(); elapsedTime = 0; updateTimerDisplay(); // Initial timer display
         if (checkWinCondition()) { console.error("Win condition met immediately after init!"); return; }
         gameLoopInterval = setInterval(gameLoop, GAME_LOOP_INTERVAL_MS);
         if (currentGameMode === 'onePlayer') { gameTimerInterval = setInterval(updateTimerDisplay, 100); }
@@ -547,18 +520,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners ---
+    // Splash Screen Buttons
+    if (splashMusicButton) {
+        splashMusicButton.addEventListener('click', () => {
+            if (introSound) {
+                // Toggle play/pause
+                if (introSound.paused) {
+                    introSound.play().then(() => {
+                         if (splashMusicButton) splashMusicButton.classList.add('playing');
+                    }).catch(e => console.warn("Manual intro sound play failed:", e));
+                } else {
+                    introSound.pause(); // Pause only
+                    if (splashMusicButton) splashMusicButton.classList.remove('playing');
+                }
+            }
+        });
+    } else { console.error("Splash Music button not found!"); }
+
+    if (splashPlayButton) {
+        splashPlayButton.addEventListener('click', () => {
+            // Always stop intro sound when starting game
+            safeStopSound(introSound);
+            if (splashMusicButton) splashMusicButton.classList.remove('playing');
+
+            // Hide splash, show start menu
+            if (splashScreen) splashScreen.style.display = 'none';
+            if (startScreen) startScreen.style.display = 'flex';
+        });
+    } else { console.error("Splash Play button not found!"); }
+
+    // Mode Selection Buttons
     if (startOnePlayerButton) { startOnePlayerButton.addEventListener('click', () => { selectedDifficulty = difficultySelect ? (parseInt(difficultySelect.value) || 4) : 4; currentGameMode = 'onePlayer'; initGame(); }); } else { console.error("Start 1 Player button not found!"); }
     if (startTwoPlayerButton) { startTwoPlayerButton.addEventListener('click', () => { currentGameMode = 'twoPlayer'; initGame(); }); } else { console.error("Start 2 Player button not found!"); }
+
+    // Restart Button
     if (restartButton) { restartButton.addEventListener('click', () => { if (gameOverScreen) gameOverScreen.style.display = 'none'; if (startScreen) startScreen.style.display = 'flex'; if (gameLoopInterval) clearInterval(gameLoopInterval); gameLoopInterval = null; if (gameTimerInterval) clearInterval(gameTimerInterval); gameTimerInterval = null; }); } else { console.error("Restart button not found!"); }
+
+    // Keyboard Input
     document.addEventListener('keydown', (e) => { keysPressed[e.key.toLowerCase()] = true; });
     document.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
 
     // --- Initial Setup ---
-    if (startScreen) startScreen.style.display = 'flex';
+    // Show splash screen first, hide others
+    if (splashScreen) splashScreen.style.display = 'flex'; else { console.error("Splash Screen element not found on initial load!"); }
+    if (startScreen) startScreen.style.display = 'none';
     if (gameArea) gameArea.style.display = 'none';
     if (gameOverScreen) gameOverScreen.style.display = 'none';
     if (timerDisplay) timerDisplay.style.display = 'none';
     if (scoreDisplayContainer) scoreDisplayContainer.style.display = 'none';
+
+    // *** REMOVED automatic introSound.play() attempt ***
 
 }); // End DOMContentLoaded
 // --- END OF FILE script.js ---
