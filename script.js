@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalScoreDisplay = document.getElementById('final-score');
     const scoreDisplayContainer = document.getElementById('score-display-container');
     const levelDisplay = document.getElementById('level-display');
+    const levelUpOverlay = document.getElementById('level-up-overlay'); // Level Overlay Element
 
     // --- Game Configuration ---
     const WALL_SPEED = 1.5;
@@ -38,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Difficulty Speed Mapping (Higher value = Faster Toilet = Harder) ---
     // Note: Difficulty 1 is hardest, 7 is easiest. Speed mapping reflects this.
     const difficultySpeeds = {
-        1: 5.0,  2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4
+        1: 5.0, 2: 4.8, 3: 4.6, 4: 4.3, 5: 4.0, 6: 3.7, 7: 3.4
     };
     const DEFAULT_TOILET_SPEED_2P = 4.0;
 
@@ -59,7 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedDifficulty = 4; // Default difficulty
     let pooScore = 0;
     let toiletScore = 0;
-    let currentLevel = 0;
+    let currentLevel = 1; // START AT LEVEL 1
+    let levelOverlayTimeout = null; // Timer for level overlay visibility
 
     // Wall definitions
     const initialWallConfigurations = [
@@ -70,17 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Helper Functions ---
     function positionElement(element, x, y) {
+        if (!element) return;
         element.style.left = `${x}px`;
         element.style.top = `${y}px`;
     }
 
     function getRelativeRect(element) {
-        // Added safety check for element existence
         if (!element) return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
         const rect = element.getBoundingClientRect();
-        const gameAreaRect = gameArea.getBoundingClientRect();
-         // Added safety check for gameArea existence
-        if (!gameAreaRect) return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height }; // Fallback to viewport relative
+        const gameAreaRect = gameArea?.getBoundingClientRect(); // Use optional chaining
+        if (!gameAreaRect) return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
         return {
             left: rect.left - gameAreaRect.left, top: rect.top - gameAreaRect.top,
             right: rect.right - gameAreaRect.left, bottom: rect.bottom - gameAreaRect.top,
@@ -89,146 +90,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function checkCollision(rect1, rect2) {
-         // Added safety checks for valid rect objects
-        if (!rect1 || !rect2 || typeof rect1.left === 'undefined' || typeof rect2.left === 'undefined') {
-            // console.warn("Invalid rectangle passed to checkCollision");
-            return false;
-        }
-        return (
-            rect1.left < rect2.right && rect1.right > rect2.left &&
-            rect1.top < rect2.bottom && rect1.bottom > rect2.top
-        );
+        if (!rect1 || !rect2 || typeof rect1.left === 'undefined' || typeof rect2.left === 'undefined') { return false; }
+        return ( rect1.left < rect2.right && rect1.right > rect2.left && rect1.top < rect2.bottom && rect1.bottom > rect2.top );
     }
 
     function getPlayerRect(playerState) {
-        // Added safety check
         if (!playerState) return null;
-        return {
-            left: playerState.x, top: playerState.y,
-            right: playerState.x + PLAYER_SIZE, bottom: playerState.y + PLAYER_SIZE,
-            width: PLAYER_SIZE, height: PLAYER_SIZE
-        };
+        return { left: playerState.x, top: playerState.y, right: playerState.x + PLAYER_SIZE, bottom: playerState.y + PLAYER_SIZE, width: PLAYER_SIZE, height: PLAYER_SIZE };
     }
 
-    function getItemRect(itemElement) {
-        return getRelativeRect(itemElement);
-    }
+    function getItemRect(itemElement) { return getRelativeRect(itemElement); }
 
     function showBigPooEffect() {
         if (!effectOverlay) return;
-        effectOverlay.innerHTML = '💩';
-        effectOverlay.className = 'big-poo';
-        effectOverlay.style.display = 'flex';
-        setTimeout(() => {
-            if (effectOverlay && effectOverlay.classList.contains('big-poo')) {
-                effectOverlay.style.display = 'none';
-                effectOverlay.innerHTML = '';
-                effectOverlay.className = '';
-            }
-        }, EFFECT_FLASH_DURATION);
+        effectOverlay.innerHTML = '💩'; effectOverlay.className = 'big-poo'; effectOverlay.style.display = 'flex';
+        setTimeout(() => { if (effectOverlay && effectOverlay.classList.contains('big-poo')) { effectOverlay.style.display = 'none'; effectOverlay.innerHTML = ''; effectOverlay.className = ''; } }, EFFECT_FLASH_DURATION);
     }
 
     function showWaterfallEffect() {
-        const numDrops = 20;
-        const maxDelay = 350;
-        const animationDuration = EFFECT_FLASH_DURATION;
-        if (!gameArea) return; // Safety check
-        for (let i = 0; i < numDrops; i++) {
-            const dropElement = document.createElement('div');
-            dropElement.classList.add('water-drop');
-            dropElement.innerHTML = '💧';
-            const randomLeft = Math.random() * 100;
-            dropElement.style.left = `${randomLeft}%`;
-            const randomDelay = Math.random() * maxDelay;
-            dropElement.style.animationDelay = `${randomDelay}ms`;
-            dropElement.style.animationDuration = `${animationDuration}ms`;
-            gameArea.appendChild(dropElement);
-            setTimeout(() => {
-                // Check parentNode before removing
-                if (dropElement.parentNode === gameArea) {
-                    gameArea.removeChild(dropElement);
-                }
-            }, animationDuration + randomDelay + 50); // Small buffer
-        }
-    }
+        const n=20,d=350,a=EFFECT_FLASH_DURATION; if(!gameArea) return; for (let i=0;i<n;i++){const e=document.createElement('div'); e.classList.add('water-drop'); e.innerHTML='💧'; const l=Math.random()*100; e.style.left=`${l}%`; const y=Math.random()*d; e.style.animationDelay=`${y}ms`; e.style.animationDuration=`${a}ms`; gameArea.appendChild(e); setTimeout(()=>{if(e.parentNode===gameArea){gameArea.removeChild(e);}},a+y+50);}} // Kept compact as it works
 
-    function checkWinCondition() {
-        // Added safety checks
-        const pooRect = getPlayerRect(pooState);
-        const toiletRect = getPlayerRect(toiletState);
-        if (!pooRect || !toiletRect) return false;
-        return checkCollision(pooRect, toiletRect);
-    }
+    function checkWinCondition() { const pR=getPlayerRect(pooState), tR=getPlayerRect(toiletState); if (!pR || !tR) return false; return checkCollision(pR, tR); }
 
     function calculateCollisionAdjustedPosition(objectState, dx, dy) {
-         // Added safety check
         if (!objectState) return { x: 0, y: 0};
-
-        let nextX = objectState.x + dx;
-        let nextY = objectState.y + dy;
-        const objectSize = PLAYER_SIZE;
-
-        // Ensure GAME_WIDTH/HEIGHT are valid numbers
-        const validGameWidth = typeof GAME_WIDTH === 'number' ? GAME_WIDTH : 600;
-        const validGameHeight = typeof GAME_HEIGHT === 'number' ? GAME_HEIGHT : 500;
-
-
-        // 1. Boundary checks
-        nextX = Math.max(0, Math.min(validGameWidth - objectSize, nextX));
-        nextY = Math.max(0, Math.min(validGameHeight - objectSize, nextY));
-
-        // 2. Wall collision checks
-        const potentialRect = { left: nextX, top: nextY, right: nextX + objectSize, bottom: nextY + objectSize };
-        let collisionX = false;
-        let collisionY = false;
-
-        wallsState.forEach(wall => {
-             // Added safety checks inside loop
-            if (!wall || typeof wall.x === 'undefined') return;
-            const wallRect = { left: wall.x, top: wall.y, right: wall.x + wall.width, bottom: wall.y + wall.height };
-            if (checkCollision(potentialRect, wallRect)) {
-                const currentRect = getPlayerRect(objectState);
-                if (!currentRect) return; // Need current pos for separation checks
-
-                const potentialRectX = { ...currentRect, left: nextX, right: nextX + objectSize };
-                if (dx !== 0 && checkCollision(potentialRectX, wallRect)) { collisionX = true; }
-
-                const potentialRectY = { ...currentRect, top: nextY, bottom: nextY + objectSize };
-                if (dy !== 0 && checkCollision(potentialRectY, wallRect)) { collisionY = true; }
-            }
-        });
-
-        // Determine final position based on collisions
-        let finalX = collisionX ? objectState.x : nextX;
-        let finalY = collisionY ? objectState.y : nextY;
-
-        // Final boundary clamp on the potentially adjusted position
-        finalX = Math.max(0, Math.min(validGameWidth - objectSize, finalX));
-        finalY = Math.max(0, Math.min(validGameHeight - objectSize, finalY));
-
-        return { x: finalX, y: finalY };
-    }
+        let nX=objectState.x+dx, nY=objectState.y+dy; const oS=PLAYER_SIZE;
+        const vGW=typeof GAME_WIDTH==='number'?GAME_WIDTH:600; const vGH=typeof GAME_HEIGHT==='number'?GAME_HEIGHT:500;
+        nX=Math.max(0,Math.min(vGW-oS,nX)); nY=Math.max(0,Math.min(vGH-oS,nY));
+        const pR={left:nX,top:nY,right:nX+oS,bottom:nY+oS}; let cX=false,cY=false;
+        wallsState.forEach(w=>{if(!w||typeof w.x==='undefined')return; const wR={left:w.x,top:w.y,right:w.x+w.width,bottom:w.y+w.height};if(checkCollision(pR,wR)){const cRt=getPlayerRect(objectState);if(!cRt)return; const pRX={...cRt,left:nX,right:nX+oS}; if(dx!==0&&checkCollision(pRX,wR)){cX=true;} const pRY={...cRt,top:nY,bottom:nY+oS}; if(dy!==0&&checkCollision(pRY,wR)){cY=true;}}});
+        let fX=cX?objectState.x:nX; let fY=cY?objectState.y:nY;
+        fX=Math.max(0,Math.min(vGW-oS,fX)); fY=Math.max(0,Math.min(vGH-oS,fY));
+        return {x:fX,y:fY};
+    } // Kept compact as it works
 
     function movePlayer(playerState, moveKeys) {
-         // Added safety check
         if (!playerState || !playerState.element) return;
-
-        let dx = 0; let dy = 0;
-        if (moveKeys.up) dy -= playerState.speed;
-        if (moveKeys.down) dy += playerState.speed;
-        if (moveKeys.left) dx -= playerState.speed;
-        if (moveKeys.right) dx += playerState.speed;
-
-        // Normalize diagonal speed
-        if (dx !== 0 && dy !== 0) {
-            const factor = playerState.speed / Math.sqrt(dx * dx + dy * dy);
-            dx *= factor; dy *= factor;
-        }
-
-        const finalPos = calculateCollisionAdjustedPosition(playerState, dx, dy);
-        playerState.x = finalPos.x;
-        playerState.y = finalPos.y;
-        positionElement(playerState.element, playerState.x, playerState.y);
+        let dx=0,dy=0; if(moveKeys.up)dy-=playerState.speed; if(moveKeys.down)dy+=playerState.speed; if(moveKeys.left)dx-=playerState.speed; if(moveKeys.right)dx+=playerState.speed;
+        if(dx!==0&&dy!==0){const f=playerState.speed/Math.sqrt(dx*dx+dy*dy); dx*=f; dy*=f;}
+        const p=calculateCollisionAdjustedPosition(playerState,dx,dy); playerState.x=p.x; playerState.y=p.y; positionElement(playerState.element,playerState.x,playerState.y);
     }
 
     // --- Background/Level Functions ---
@@ -240,270 +140,114 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     function setBackgroundForLevel(level) {
-        if (!gameArea) return; // Safety check
-        // Ensure level is a non-negative integer
-        const safeLevel = Math.max(0, Math.floor(level || 0));
-        const backgroundIndex = safeLevel % levelBackgrounds.length;
+        if (!gameArea) return;
+        // Level is 1-based, adjust index for 0-based array
+        const safeLevel = Math.max(1, Math.floor(level || 1));
+        const backgroundIndex = (safeLevel - 1) % levelBackgrounds.length;
         gameArea.style.background = levelBackgrounds[backgroundIndex];
     }
 
     // --- Update Display Function ---
     function updateGameStatusDisplay() {
-        // Added safety checks for display elements
         if (pooScoreDisplay) pooScoreDisplay.textContent = `💩: ${pooScore}`;
         if (toiletScoreDisplay) toiletScoreDisplay.textContent = `🚽: ${toiletScore}`;
         if (levelDisplay) levelDisplay.textContent = `Lvl: ${currentLevel}`;
     }
 
+    // --- NEW: Show Level Overlay Function ---
+    function showLevelOverlay(levelToShow) {
+        if (!levelUpOverlay) return;
+
+        clearTimeout(levelOverlayTimeout); // Clear previous timer if any
+
+        levelUpOverlay.textContent = `LEVEL ${levelToShow}`;
+        levelUpOverlay.classList.add('visible'); // Add class to make visible (uses CSS opacity transition)
+
+        // Set timeout to hide overlay after a duration
+        levelOverlayTimeout = setTimeout(() => {
+            if (levelUpOverlay) {
+                levelUpOverlay.classList.remove('visible'); // Remove class to fade out
+            }
+            // No need for second timeout if CSS handles fade out fully
+        }, 2000); // Display duration: 2000ms = 2 seconds
+    }
+
     // --- Player State / Item Logic ---
     function resetPlayerState(playerState, startX, startY) {
-        if (!playerState || !playerState.element) return; // Safety check
-        playerState.x = startX;
-        playerState.y = startY;
-        // Speed is set in initGame based on mode/difficulty
-        playerState.isSlowed = false;
-        playerState.isPoweredUp = false;
-        playerState.element.style.opacity = '1';
-        playerState.element.style.filter = 'none';
+        if (!playerState || !playerState.element) return;
+        playerState.x = startX; playerState.y = startY;
+        playerState.isSlowed = false; playerState.isPoweredUp = false;
+        playerState.element.style.opacity = '1'; playerState.element.style.filter = 'none';
         positionElement(playerState.element, playerState.x, playerState.y);
+        // Speed is set in initGame
     }
 
     function applyDebuff(playerState, type) {
-        if (!playerState || !playerState.element) return; // Safety check
+        if (!playerState || !playerState.element) return;
         if (type === 'slow' && !playerState.isSlowed) {
-            playerState.isSlowed = true;
-            playerState.speed = playerState.baseSpeed * 0.5;
-            playerState.element.style.opacity = '0.6';
-            clearTimeout(playerState.debuffTimer); // Use unique timer property
-            playerState.debuffTimer = setTimeout(() => {
-                if (playerState && playerState.isSlowed) { // Check playerState still exists
-                    playerState.speed = playerState.isPoweredUp ? playerState.baseSpeed * 1.5 : playerState.baseSpeed;
-                    playerState.element.style.opacity = '1';
-                    playerState.isSlowed = false;
-                }
-            }, DEBUFF_DURATION);
+            playerState.isSlowed = true; playerState.speed = playerState.baseSpeed * 0.5; playerState.element.style.opacity = '0.6';
+            clearTimeout(playerState.debuffTimer);
+            playerState.debuffTimer = setTimeout(() => { if (playerState && playerState.isSlowed) { playerState.speed = playerState.isPoweredUp ? playerState.baseSpeed * 1.5 : playerState.baseSpeed; playerState.element.style.opacity = '1'; playerState.isSlowed = false; } }, DEBUFF_DURATION);
         }
     }
 
     function applyPowerup(playerState, type) {
-        if (!playerState || !playerState.element) return; // Safety check
-        playerState.isPoweredUp = true;
-        playerState.speed = playerState.baseSpeed * 1.5;
-        playerState.element.style.filter = 'brightness(1.5)';
-        playerState.element.style.opacity = '1'; // Ensure not faded if slowed before
-        if (type === 'food') { showBigPooEffect(); }
-        else if (type === 'flush') { showWaterfallEffect(); }
-        clearTimeout(playerState.powerupTimer); // Use unique timer property
-        playerState.powerupTimer = setTimeout(() => {
-            if (playerState && playerState.isPoweredUp) { // Check playerState still exists
-                playerState.speed = playerState.isSlowed ? playerState.baseSpeed * 0.5 : playerState.baseSpeed; // Re-apply slow if needed
-                playerState.element.style.filter = 'none';
-                if (playerState.isSlowed) playerState.element.style.opacity = '0.6'; // Re-apply slow visual
-                playerState.isPoweredUp = false;
-            }
-        }, POWERUP_DURATION);
+        if (!playerState || !playerState.element) return;
+        playerState.isPoweredUp = true; playerState.speed = playerState.baseSpeed * 1.5; playerState.element.style.filter = 'brightness(1.5)'; playerState.element.style.opacity = '1';
+        if (type === 'food') { showBigPooEffect(); } else if (type === 'flush') { showWaterfallEffect(); }
+        clearTimeout(playerState.powerupTimer);
+        playerState.powerupTimer = setTimeout(() => { if (playerState && playerState.isPoweredUp) { playerState.speed = playerState.isSlowed ? playerState.baseSpeed * 0.5 : playerState.baseSpeed; playerState.element.style.filter = 'none'; if (playerState.isSlowed) playerState.element.style.opacity = '0.6'; playerState.isPoweredUp = false; } }, POWERUP_DURATION);
     }
 
     // Respawn with random placement
     function respawnItem(itemElement, attempt = 1) {
-        const maxAttempts = 10;
-        if (attempt > maxAttempts) {
-            console.warn(`Respawn ${itemElement?.id || 'item'} fail after ${maxAttempts} attempts.`);
-            setTimeout(() => respawnItem(itemElement, 1), 5000 + Math.random() * 5000); // Try again much later
-            return;
-        }
-        // Ensure game dimensions are valid numbers
-        const validGameWidth = typeof GAME_WIDTH === 'number' ? GAME_WIDTH : 600;
-        const validGameHeight = typeof GAME_HEIGHT === 'number' ? GAME_HEIGHT : 500;
-
-        const randomX = Math.random() * (validGameWidth - ITEM_SIZE);
-        const randomY = Math.random() * (validGameHeight - ITEM_SIZE);
-        const potentialItemRect = { left: randomX, top: randomY, right: randomX + ITEM_SIZE, bottom: randomY + ITEM_SIZE, width: ITEM_SIZE, height: ITEM_SIZE };
-        let overlap = false;
-
-        // Check Walls with buffer
-        wallsState.forEach(wall => {
-            if (!wall || typeof wall.x === 'undefined') return;
-            const wallRect = { left: wall.x, top: wall.y, right: wall.x + wall.width, bottom: wall.y + wall.height };
-            const bufferedWallRect = { left: wallRect.left - (ITEM_SIZE / 2), top: wallRect.top - (ITEM_SIZE / 2), right: wallRect.right + (ITEM_SIZE / 2), bottom: wallRect.bottom + (ITEM_SIZE / 2) };
-            if (checkCollision(potentialItemRect, bufferedWallRect)) { overlap = true; }
-        });
-
-        // Check Players if no overlap yet
-        if (!overlap && (checkCollision(potentialItemRect, getPlayerRect(pooState)) || checkCollision(potentialItemRect, getPlayerRect(toiletState)))) {
-             overlap = true;
-        }
-
-        // Check Other Items if no overlap yet
-        if (!overlap) {
-            [toiletPaper, food, flush].forEach(otherItem => {
-                // Only check visible items, and don't check against self
-                if (itemElement !== otherItem && otherItem && otherItem.style.display !== 'none') {
-                     const otherItemRect = getItemRect(otherItem);
-                     if (checkCollision(potentialItemRect, otherItemRect)) { overlap = true; }
-                }
-            });
-        }
-
-        // Place or Retry
-        if (!overlap) {
-            positionElement(itemElement, randomX, randomY);
-            itemElement.style.display = 'block';
-        } else {
-            requestAnimationFrame(() => respawnItem(itemElement, attempt + 1)); // Try again next frame
-        }
-    }
+        const mA=10; if(attempt>mA){console.warn(`Respawn ${itemElement?.id||'item'} fail`);setTimeout(()=>respawnItem(itemElement,1),5000+Math.random()*5000);return;} const vGW=typeof GAME_WIDTH==='number'?GAME_WIDTH:600; const vGH=typeof GAME_HEIGHT==='number'?GAME_HEIGHT:500; const rX=Math.random()*(vGW-ITEM_SIZE), rY=Math.random()*(vGH-ITEM_SIZE); const pIR={left:rX,top:rY,right:rX+ITEM_SIZE,bottom:rY+ITEM_SIZE,width:ITEM_SIZE,height:ITEM_SIZE}; let o=false; wallsState.forEach(w=>{if(!w||typeof w.x==='undefined')return;const wR={left:w.x,top:w.y,right:w.x+w.width,bottom:w.y+w.height};const bWR={left:wR.left-(ITEM_SIZE/2),top:wR.top-(ITEM_SIZE/2),right:wR.right+(ITEM_SIZE/2),bottom:wR.bottom+(ITEM_SIZE/2)};if(checkCollision(pIR,bWR)){o=true;}}); if(!o&&(checkCollision(pIR,getPlayerRect(pooState))||checkCollision(pIR,getPlayerRect(toiletState)))){o=true;} if(!o){[toiletPaper,food,flush].forEach(i=>{if(itemElement!==i&&i&&i.style.display!=='none'){const iR=getItemRect(i);if(checkCollision(pIR,iR)){o=true;}}});} if(!o){if(itemElement){positionElement(itemElement,rX,rY);itemElement.style.display='block';}} else {requestAnimationFrame(()=>respawnItem(itemElement,attempt+1));}} // Kept compact
 
     // --- Wall Initialization / Movement ---
-    function initializeWalls() {
-        if (!gameArea) return; // Safety check
-        // Clear existing walls from DOM and state array
-        wallsState.forEach(wall => {
-            if (wall.element && wall.element.parentNode === gameArea) {
-                gameArea.removeChild(wall.element);
-            }
-        });
-        wallsState = [];
+    function initializeWalls() { if (!gameArea) return; wallsState.forEach(w=>{if(w.element&&w.element.parentNode===gameArea){gameArea.removeChild(w.element);}}); wallsState = []; initialWallConfigurations.forEach(c=>{if(typeof c?.x!=='number'||typeof c?.y!=='number'||typeof c?.width!=='number'||typeof c?.height!=='number'){console.warn("Skip invalid wall config:",c);return;}const e=document.createElement('div');e.classList.add('wall');e.style.width=`${c.width}px`;e.style.height=`${c.height}px`;gameArea.appendChild(e);let dx=(Math.random()<0.5?WALL_SPEED:-WALL_SPEED);let dy=(Math.random()<0.5?WALL_SPEED:-WALL_SPEED);const ws={element:e,x:c.x,y:c.y,width:c.width,height:c.height,dx:dx,dy:dy};wallsState.push(ws);positionElement(e,ws.x,ws.y);});} // Kept compact
+    function moveWalls() { const vGW=typeof GAME_WIDTH==='number'?GAME_WIDTH:600; const vGH=typeof GAME_HEIGHT==='number'?GAME_HEIGHT:500; wallsState.forEach(w=>{if(!w||!w.element)return; let nX=w.x+w.dx, nY=w.y+w.dy; if(nX<0||nX+w.width>vGW){w.dx*=-1;nX=w.x+w.dx;nX=Math.max(0,Math.min(vGW-w.width,nX));} if(nY<0||nY+w.height>vGH){w.dy*=-1;nY=w.y+w.dy;nY=Math.max(0,Math.min(vGH-w.height,nY));} w.x=nX;w.y=nY;positionElement(w.element,w.x,w.y);});} // Kept compact
 
-        // Create new walls
-        initialWallConfigurations.forEach(config => {
-             // Basic validation of config
-            if (typeof config?.x !== 'number' || typeof config?.y !== 'number' || typeof config?.width !== 'number' || typeof config?.height !== 'number') {
-                console.warn("Skipping invalid wall configuration:", config);
-                return;
-            }
-            const wallElement = document.createElement('div');
-            wallElement.classList.add('wall');
-            wallElement.style.width = `${config.width}px`;
-            wallElement.style.height = `${config.height}px`;
-            gameArea.appendChild(wallElement);
+    // --- MODIFIED Level Up Logic ---
+    function levelUp(newLevel) { // Accept the new level number
+        // Prevent processing if level isn't actually increasing or invalid state
+        if (!Number.isInteger(newLevel) || currentLevel >= newLevel) return;
 
-            let dx = (Math.random() < 0.5 ? WALL_SPEED : -WALL_SPEED);
-            let dy = (Math.random() < 0.5 ? WALL_SPEED : -WALL_SPEED);
-
-            const wallState = {
-                element: wallElement, x: config.x, y: config.y,
-                width: config.width, height: config.height,
-                dx: dx, dy: dy
-            };
-            wallsState.push(wallState);
-            positionElement(wallElement, wallState.x, wallState.y);
-        });
-        // console.log(`Initialized ${wallsState.length} walls.`);
-    }
-
-    function moveWalls() {
-        // Ensure game dimensions are valid
-        const validGameWidth = typeof GAME_WIDTH === 'number' ? GAME_WIDTH : 600;
-        const validGameHeight = typeof GAME_HEIGHT === 'number' ? GAME_HEIGHT : 500;
-
-        wallsState.forEach(wall => {
-            if (!wall || !wall.element) return; // Safety check
-
-            let nextX = wall.x + wall.dx;
-            let nextY = wall.y + wall.dy;
-
-            // Boundary checks
-            if (nextX < 0 || nextX + wall.width > validGameWidth) {
-                wall.dx *= -1;
-                nextX = wall.x + wall.dx; // Recalculate potential position based on new direction
-                nextX = Math.max(0, Math.min(validGameWidth - wall.width, nextX)); // Clamp
-            }
-            if (nextY < 0 || nextY + wall.height > validGameHeight) {
-                wall.dy *= -1;
-                nextY = wall.y + wall.dy; // Recalculate
-                nextY = Math.max(0, Math.min(validGameHeight - wall.height, nextY)); // Clamp
-            }
-
-            wall.x = nextX;
-            wall.y = nextY;
-            positionElement(wall.element, wall.x, wall.y);
-        });
-    }
-
-    // --- Level Up Logic ---
-    function levelUp() {
-        currentLevel++;
+        currentLevel = newLevel; // Set the new level
         // console.log(`Level Up! Reached Level ${currentLevel}`);
-        updateGameStatusDisplay();
-        setBackgroundForLevel(currentLevel);
-        if (currentGameMode === 'onePlayer' && toiletState) { // Added toiletState check
-            const speedIncrement = 0.18;
+
+        showLevelOverlay(currentLevel); // Show visual overlay
+        updateGameStatusDisplay();     // Update score/level text
+        setBackgroundForLevel(currentLevel); // Change background
+
+        // Increase AI speed in 1P mode
+        if (currentGameMode === 'onePlayer' && toiletState) {
+            const speedIncrement = 0.18; // How much faster per level
             toiletState.baseSpeed += speedIncrement;
-            // Update current speed based on new base, respecting effects
+            // Update current speed, respecting powerup/debuff
             if (toiletState.isPoweredUp) { toiletState.speed = toiletState.baseSpeed * 1.5; }
             else if (toiletState.isSlowed) { toiletState.speed = toiletState.baseSpeed * 0.5; }
             else { toiletState.speed = toiletState.baseSpeed; }
             // console.log(`AI Toilet base speed increased to: ${toiletState.baseSpeed.toFixed(2)}`);
         }
-        // Optional: Play a level-up sound effect here
+        // Optional: Play level up sound effect here
     }
 
     // --- AI Movement Logic ---
     function moveAiToilet() {
-        // Added safety checks for states
         if (!toiletState || !pooState || !flush) return;
+        let dx=0,dy=0;let tX=pooState.x,tY=pooState.y; const cX=toiletState.x,cY=toiletState.y; const isFlushVis=flush.style.display!=='none'; const canUseFlush=isFlushVis&&!toiletState.isPoweredUp;
+        if(canUseFlush){const fR=getItemRect(flush);if(fR&&typeof fR.left==='number'){const fTX=fR.left+ITEM_SIZE/2,fTY=fR.top+ITEM_SIZE/2; const dSqP=(pooState.x-cX)**2+(pooState.y-cY)**2; const dSqF=(fTX-cX)**2+(fTY-cY)**2; if(dSqF<dSqP){tX=fTX;tY=fTY;}}}
+        const diffX=tX-cX,diffY=tY-cY; const distance=Math.sqrt(diffX*diffX+diffY*diffY); let moveTowardsTarget=true;
+        if(Math.random()<AI_MISTAKE_CHANCE){if(Math.random()<0.3){moveTowardsTarget=false;}else{dx=(Math.random()-0.5)*2*toiletState.speed*AI_RANDOM_MOVE_SCALE;dy=(Math.random()-0.5)*2*toiletState.speed*AI_RANDOM_MOVE_SCALE;moveTowardsTarget=false;}}
+        if(moveTowardsTarget&&distance>PLAYER_SIZE/4){if(distance>0){dx=(diffX/distance)*toiletState.speed;dy=(diffY/distance)*toiletState.speed;}else{dx=0;dy=0;}}else if(!moveTowardsTarget&&dx===0&&dy===0){dx=0;dy=0;}
+        const finalPos=calculateCollisionAdjustedPosition(toiletState,dx,dy); toiletState.x=finalPos.x; toiletState.y=finalPos.y; positionElement(toiletState.element,toiletState.x,toiletState.y);
+    } // Kept compact
 
-        let dx = 0; let dy = 0;
-        let targetX = pooState.x; let targetY = pooState.y;
-        const currentX = toiletState.x; const currentY = toiletState.y;
-        const isFlushVisible = flush.style.display !== 'none';
-        const canUseFlush = isFlushVisible && !toiletState.isPoweredUp;
-
-        if (canUseFlush) {
-            const flushRect = getItemRect(flush);
-            // Check if flushRect is valid before using its properties
-            if (flushRect && typeof flushRect.left === 'number') {
-                const flushTargetX = flushRect.left + ITEM_SIZE / 2;
-                const flushTargetY = flushRect.top + ITEM_SIZE / 2;
-                const distSqToPoo = (pooState.x - currentX) ** 2 + (pooState.y - currentY) ** 2;
-                const distSqToFlush = (flushTargetX - currentX) ** 2 + (flushTargetY - currentY) ** 2;
-                if (distSqToFlush < distSqToPoo) {
-                    targetX = flushTargetX; targetY = flushTargetY;
-                }
-            }
-        }
-
-        const diffX = targetX - currentX; const diffY = targetY - currentY;
-        const distance = Math.sqrt(diffX * diffX + diffY * diffY);
-        let moveTowardsTarget = true;
-
-        if (Math.random() < AI_MISTAKE_CHANCE) {
-            if (Math.random() < 0.3) { // Hesitate
-                moveTowardsTarget = false;
-            } else { // Move somewhat randomly
-                dx = (Math.random() - 0.5) * 2 * toiletState.speed * AI_RANDOM_MOVE_SCALE;
-                dy = (Math.random() - 0.5) * 2 * toiletState.speed * AI_RANDOM_MOVE_SCALE;
-                moveTowardsTarget = false;
-            }
-        }
-
-        // Calculate final movement vector
-        if (moveTowardsTarget && distance > PLAYER_SIZE / 4) { // Only move if target is sufficiently far
-             // Avoid division by zero if distance is somehow 0
-             if (distance > 0) {
-                dx = (diffX / distance) * toiletState.speed;
-                dy = (diffY / distance) * toiletState.speed;
-             } else {
-                 dx = 0; dy = 0;
-             }
-        } else if (!moveTowardsTarget && dx === 0 && dy === 0) {
-            // Ensure hesitation results in no movement if random move wasn't chosen
-             dx = 0; dy = 0;
-        }
-        // If distance is small, dx/dy naturally become close to 0
-
-        const finalPos = calculateCollisionAdjustedPosition(toiletState, dx, dy);
-        toiletState.x = finalPos.x;
-        toiletState.y = finalPos.y;
-        positionElement(toiletState.element, toiletState.x, toiletState.y);
-    }
-
-    // --- Item Collision & Initial Placement ---
+    // --- MODIFIED Item Collision Logic ---
     function checkItemCollisions(playerState) {
-        if (!playerState) return; // Safety check
+        if (!playerState) return;
         const playerRect = getPlayerRect(playerState);
-        if (!playerRect) return; // Safety check
+        if (!playerRect) return;
 
         let scoreChanged = false;
 
@@ -524,9 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 applyPowerup(playerState, 'food');
                 pooScore++;
                 scoreChanged = true;
-                if (pooScore > 0 && pooScore % 5 === 0) {
-                    levelUp();
+
+                // Calculate target level and check if it's higher than current
+                const targetLevel = Math.floor(pooScore / 5) + 1;
+                if (targetLevel > currentLevel) {
+                    levelUp(targetLevel); // Pass the new level number
                 }
+
                 food.style.display = 'none';
                 setTimeout(() => respawnItem(food), 8000);
             }
@@ -544,195 +292,91 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Update display only if a score actually changed
+        // Update display only if score changed
         if (scoreChanged) {
             updateGameStatusDisplay();
         }
     }
 
     function placeItems() {
-        // Safety check elements before trying to respawn
-        if (toiletPaper) respawnItem(toiletPaper);
-        if (food) respawnItem(food);
-        if (flush) respawnItem(flush);
+        if (toiletPaper) respawnItem(toiletPaper); if (food) respawnItem(food); if (flush) respawnItem(flush);
     }
 
     // --- Timer Update ---
     function updateTimerDisplay() {
-        if (!gameLoopInterval || !timerDisplay) return; // Don't update if game isn't running or element missing
-        const now = Date.now();
-        // Ensure startTime is a valid number
-        const validStartTime = typeof startTime === 'number' ? startTime : now;
+        if (!gameLoopInterval || !timerDisplay) return;
+        const now = Date.now(); const validStartTime = typeof startTime === 'number' ? startTime : now;
         const currentElapsedTime = ((now - validStartTime) / 1000).toFixed(1);
         timerDisplay.textContent = `Time: ${currentElapsedTime}s`;
     }
 
     // --- Core Game Initialization and Loop ---
     function initGame() {
-        // Safety check crucial elements needed for init
-        if (!startScreen || !gameOverScreen || !gameArea || !pooState || !toiletState || !difficultySelect) {
-            console.error("CRITICAL ERROR: Cannot initialize game, essential DOM element or state missing!");
-            return;
-        }
-
+        if (!startScreen || !gameOverScreen || !gameArea || !pooState || !toiletState || !difficultySelect) { console.error("CRITICAL ERROR: Cannot initialize game, essential element/state missing!"); return; }
         // console.log(`Init Game Mode: ${currentGameMode}, Difficulty: ${selectedDifficulty}`);
-        startScreen.style.display = 'none';
-        gameOverScreen.style.display = 'none';
-        gameArea.style.display = 'block';
-
-        // Show/hide displays based on mode
+        startScreen.style.display = 'none'; gameOverScreen.style.display = 'none'; gameArea.style.display = 'block';
         if (timerDisplay) timerDisplay.style.display = (currentGameMode === 'onePlayer') ? 'block' : 'none';
-        if (scoreDisplayContainer) scoreDisplayContainer.style.display = 'block'; // Show always now
+        if (scoreDisplayContainer) scoreDisplayContainer.style.display = 'block';
 
-        // Get dimensions AFTER display: block
-        GAME_WIDTH = gameArea.offsetWidth;
-        GAME_HEIGHT = gameArea.offsetHeight;
-        if (GAME_WIDTH === 0 || GAME_HEIGHT === 0) {
-            console.warn("Game area dimensions zero! Falling back."); GAME_WIDTH = 600; GAME_HEIGHT = 500;
-        }
+        GAME_WIDTH = gameArea.offsetWidth; GAME_HEIGHT = gameArea.offsetHeight;
+        if (GAME_WIDTH === 0 || GAME_HEIGHT === 0) { console.warn("Game area dimensions zero! Falling back."); GAME_WIDTH = 600; GAME_HEIGHT = 500; }
 
-        // Reset states
-        keysPressed = {};
-        pooScore = 0; toiletScore = 0; currentLevel = 0;
+        keysPressed = {}; pooScore = 0; toiletScore = 0;
+        currentLevel = 1; // START AT LEVEL 1
 
-        // Set toilet speed based on mode/difficulty
-        if (currentGameMode === 'onePlayer') {
-            toiletState.baseSpeed = difficultySpeeds[selectedDifficulty] || 4.3; // Use mapping, fallback to normal
-        } else { // Two player mode
-            toiletState.baseSpeed = DEFAULT_TOILET_SPEED_2P; // Use fixed 2P speed
-        }
-        toiletState.speed = toiletState.baseSpeed; // Initialize current speed
+        if (currentGameMode === 'onePlayer') { toiletState.baseSpeed = difficultySpeeds[selectedDifficulty] || 4.3; }
+        else { toiletState.baseSpeed = DEFAULT_TOILET_SPEED_2P; }
+        toiletState.speed = toiletState.baseSpeed;
 
-        // Reset players (will use updated speed)
         resetPlayerState(pooState, initialPooPos.x, initialPooPos.y);
         resetPlayerState(toiletState, initialToiletPos.x, initialToiletPos.y);
+        initializeWalls(); placeItems();
+        updateGameStatusDisplay(); // Update score/level display (now shows Lvl: 1)
+        setBackgroundForLevel(currentLevel); // Set background for Level 1
+        showLevelOverlay(currentLevel); // SHOW LEVEL 1 OVERLAY
 
-        // Initialize dynamic elements
-        initializeWalls();
-        placeItems(); // Uses respawn logic
-
-        // Update displays
-        updateGameStatusDisplay();
-        setBackgroundForLevel(currentLevel);
-
-        // Clear any old intervals
         if (gameLoopInterval) { clearInterval(gameLoopInterval); gameLoopInterval = null; }
         if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
 
-        // Start timers
-        startTime = Date.now();
-        elapsedTime = 0;
-        updateTimerDisplay(); // Initial display
+        startTime = Date.now(); elapsedTime = 0; updateTimerDisplay(); // Initial timer display
 
-        // Check for immediate win (unlikely but safe)
-        if (checkWinCondition()) {
-            console.error("Win condition met immediately after init!");
-            // Optionally handle this more gracefully than just returning
-            return;
-        }
+        if (checkWinCondition()) { console.error("Win condition met immediately after init!"); return; }
 
-        // Start game loops
         gameLoopInterval = setInterval(gameLoop, GAME_LOOP_INTERVAL_MS);
-        if (currentGameMode === 'onePlayer') {
-            gameTimerInterval = setInterval(updateTimerDisplay, 100); // Update timer 10x per second
-        }
+        if (currentGameMode === 'onePlayer') { gameTimerInterval = setInterval(updateTimerDisplay, 100); }
     }
 
     function gameLoop() {
-        // Core loop actions
         moveWalls();
         movePlayer(pooState, { up: keysPressed['w'], down: keysPressed['s'], left: keysPressed['a'], right: keysPressed['d'] });
-
-        if (currentGameMode === 'twoPlayer') {
-            movePlayer(toiletState, { up: keysPressed['arrowup'], down: keysPressed['arrowdown'], left: keysPressed['arrowleft'], right: keysPressed['arrowright'] });
-        } else if (currentGameMode === 'onePlayer') {
-            moveAiToilet();
-        }
-
-        checkItemCollisions(pooState);
-        checkItemCollisions(toiletState);
-
-        if (checkWinCondition()) {
-            endGame();
-        }
+        if (currentGameMode === 'twoPlayer') { movePlayer(toiletState, { up: keysPressed['arrowup'], down: keysPressed['arrowdown'], left: keysPressed['arrowleft'], right: keysPressed['arrowright'] }); }
+        else if (currentGameMode === 'onePlayer') { moveAiToilet(); }
+        checkItemCollisions(pooState); checkItemCollisions(toiletState);
+        if (checkWinCondition()) { endGame(); }
     }
 
     function endGame() {
-        // Prevent double execution
         if (!gameLoopInterval) return;
-        const finalElapsedTime = ((Date.now() - startTime) / 1000); // Use a local var
-
-        // Stop game loops
-        clearInterval(gameLoopInterval); gameLoopInterval = null;
-        if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
-
-        // Play sound
-        if (winSound) {
-             winSound.currentTime = 0;
-             winSound.play().catch(e => console.warn("Sound play failed:", e)); // Use warn for non-critical errors
-        }
-
-        // Prepare messages
-        let timeText = '';
-        let scoreText = '';
-        if (currentGameMode === 'onePlayer') {
-            timeText = `Survived for ${finalElapsedTime.toFixed(1)} seconds!`;
-            scoreText = `Final Score - 💩: ${pooScore} | 🚽: ${toiletScore} (Level ${currentLevel})`;
-        } else { // Two Player
-            timeText = ''; // No survival time
-            scoreText = `Final Score - 💩: ${pooScore} | 🚽: ${toiletScore} (Level ${currentLevel})`;
-        }
-
-        // Update display elements safely
-        if (finalTimeDisplay) { finalTimeDisplay.textContent = timeText; }
-        else { console.error("Cannot display final time - element not found."); }
-
-        if (finalScoreDisplay) { finalScoreDisplay.textContent = scoreText; }
-        else { console.error("Cannot display final score - element not found."); }
-
-        // Show Game Over Screen safely
-        if (gameOverScreen) { gameOverScreen.style.display = 'flex'; }
-        else { console.error("Cannot show game over screen - element not found."); }
-
-        // Hide Game Area safely
+        const finalElapsedTime = ((Date.now() - startTime) / 1000);
+        clearInterval(gameLoopInterval); gameLoopInterval = null; if (gameTimerInterval) { clearInterval(gameTimerInterval); gameTimerInterval = null; }
+        if (winSound) { winSound.currentTime = 0; winSound.play().catch(e => console.warn("Sound play failed:", e)); }
+        let timeText = ''; let scoreText = '';
+        if (currentGameMode === 'onePlayer') { timeText = `Survived for ${finalElapsedTime.toFixed(1)} seconds!`; }
+        scoreText = `Final Score - 💩: ${pooScore} | 🚽: ${toiletScore} (Level ${currentLevel})`; // Always show score/level
+        if (finalTimeDisplay) { finalTimeDisplay.textContent = timeText; } else { console.error("Cannot display final time - element not found."); }
+        if (finalScoreDisplay) { finalScoreDisplay.textContent = scoreText; } else { console.error("Cannot display final score - element not found."); }
+        if (gameOverScreen) { gameOverScreen.style.display = 'flex'; } else { console.error("Cannot show game over screen - element not found."); }
         if (gameArea) { gameArea.style.display = 'none'; }
-
-        // console.log("endGame function finished");
     }
 
     // --- Event Listeners ---
-    if (startOnePlayerButton) {
-        startOnePlayerButton.addEventListener('click', () => {
-             // Ensure difficultySelect exists before reading value
-             selectedDifficulty = difficultySelect ? (parseInt(difficultySelect.value) || 4) : 4;
-             currentGameMode = 'onePlayer';
-             initGame();
-        });
-    } else { console.error("Start 1 Player button not found!"); }
-
-    if (startTwoPlayerButton) {
-        startTwoPlayerButton.addEventListener('click', () => {
-             currentGameMode = 'twoPlayer';
-             initGame();
-        });
-     } else { console.error("Start 2 Player button not found!"); }
-
-    if (restartButton) {
-        restartButton.addEventListener('click', () => {
-             // Ensure screens exist before manipulating style
-             if (gameOverScreen) gameOverScreen.style.display = 'none';
-             if (startScreen) startScreen.style.display = 'flex';
-             // Clear intervals defensively
-             if (gameLoopInterval) clearInterval(gameLoopInterval); gameLoopInterval = null;
-             if (gameTimerInterval) clearInterval(gameTimerInterval); gameTimerInterval = null;
-        });
-    } else { console.error("Restart button not found!"); }
-
+    if (startOnePlayerButton) { startOnePlayerButton.addEventListener('click', () => { selectedDifficulty = difficultySelect ? (parseInt(difficultySelect.value) || 4) : 4; currentGameMode = 'onePlayer'; initGame(); }); } else { console.error("Start 1 Player button not found!"); }
+    if (startTwoPlayerButton) { startTwoPlayerButton.addEventListener('click', () => { currentGameMode = 'twoPlayer'; initGame(); }); } else { console.error("Start 2 Player button not found!"); }
+    if (restartButton) { restartButton.addEventListener('click', () => { if (gameOverScreen) gameOverScreen.style.display = 'none'; if (startScreen) startScreen.style.display = 'flex'; if (gameLoopInterval) clearInterval(gameLoopInterval); gameLoopInterval = null; if (gameTimerInterval) clearInterval(gameTimerInterval); gameTimerInterval = null; }); } else { console.error("Restart button not found!"); }
     document.addEventListener('keydown', (e) => { keysPressed[e.key.toLowerCase()] = true; });
     document.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
 
     // --- Initial Setup ---
-    // Ensure elements exist before setting initial style
     if (startScreen) startScreen.style.display = 'flex';
     if (gameArea) gameArea.style.display = 'none';
     if (gameOverScreen) gameOverScreen.style.display = 'none';
